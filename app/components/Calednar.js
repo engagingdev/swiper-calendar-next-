@@ -1,133 +1,151 @@
 "use client";
-
 import React, { useState, useEffect, useRef } from "react";
-import { Swiper, SwiperSlide } from "swiper/react";
-import "swiper/css";
-import "swiper/css/navigation";
-import "swiper/css/scrollbar";
-import "swiper/css/pagination";
-import "../styles.css";
-import { Navigation, Scrollbar, Pagination } from "swiper/modules";
+import "./style.css";
 
-export default function Calendar() {
-  const [squares, setSquares] = useState([]);
-  const [dragSize, setDragSize] = useState(1000); // Initial dragSize
-  const swiperRef = useRef(null); // Ref to Swiper instance
+const Calendar = () => {
+  const [dates, setDates] = useState([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const datesContainerRef = useRef(null);
 
   useEffect(() => {
-    const generateDaysOfYear = () => {
-      const today = new Date();
-      const currentMonth = today.getMonth();
-      const currentDay = today.getDate();
+    const container = datesContainerRef.current;
+    const scrollWidth = container.scrollWidth;
+    const clientWidth = container.clientWidth;
+    const scrollLeft = container.scrollLeft;
+    const maxScroll = scrollWidth - clientWidth;
 
-      const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-      const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const scrollRatio = scrollLeft / maxScroll;
+    const minLength = 10;
+    const maxLength = 50;
+    const newLength = maxLength - (maxLength - minLength) * scrollRatio;
 
-      const days = [];
-
-      // Start from the current month
-      for (
-        let monthIndex = currentMonth;
-        monthIndex < months.length;
-        monthIndex++
-      ) {
-        // Start from the current day if in the current month, otherwise from 1st
-        const startDay = monthIndex === currentMonth ? currentDay : 1;
-
-        for (let day = startDay; day <= daysInMonth[monthIndex]; day++) {
-          days.push({ month: months[monthIndex], day });
-        }
-      }
-
-      // Wrap around to the beginning of the year for the months before the current month
-      for (let monthIndex = 0; monthIndex < currentMonth; monthIndex++) {
-        for (let day = 1; day <= daysInMonth[monthIndex]; day++) {
-          days.push({ month: months[monthIndex], day });
-        }
-      }
-
-      return days;
-    };
-
-    const days = generateDaysOfYear();
-    setSquares(days); // Update squares state here
-  }, []); // Empty dependency array ensures useEffect runs only once
+    container.style.setProperty("--scrollbar-length", "50%");
+    generateDates();
+  }, []);
 
   useEffect(() => {
-    const swiperInstance = swiperRef.current.swiper;
-    if (swiperInstance) {
-      swiperInstance.on("slideNextTransitionStart", handleNext);
-      swiperInstance.on("slidePrevTransitionStart", handlePrev);
+    if (datesContainerRef.current) {
+      scrollToActiveDate();
     }
-  }); // Run when swiperRef changes
+  }, [activeIndex]);
 
-  const handleNext = () => {
-    adjustDragSize("next");
+  const generateDates = () => {
+    const today = new Date();
+    const startDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const endDate = new Date(today.getFullYear(), 11, 31);
+
+    const datesArray = [];
+    let currentDate = new Date(startDate);
+
+    while (currentDate <= endDate) {
+      datesArray.push(
+        currentDate.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        })
+      );
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    setDates(datesArray);
   };
 
-  const handlePrev = () => {
-    adjustDragSize("prev");
+  const setActive = (index) => {
+    setActiveIndex(index);
+    scrollToActiveDate();
   };
 
-  const adjustDragSize = (direction) => {
-    const swiperInstance = swiperRef.current.swiper;
-    if (swiperInstance) {
-      let newDragSize = dragSize;
-
-      // Adjust dragSize based on direction
-      if (direction === "next") {
-        newDragSize -= 3; // Decrease dragSize for next
-      } else if (direction === "prev") {
-        newDragSize += 3; // Increase dragSize for prev
-      }
-
-      setDragSize(newDragSize); // Update state for dragSize
+  const prevPage = () => {
+    if (activeIndex > 0) {
+      setActiveIndex(activeIndex - 1);
+      scrollToActiveDate();
     }
+  };
+
+  const nextPage = () => {
+    if (activeIndex < dates.length - 1) {
+      setActiveIndex(activeIndex + 1);
+      scrollToActiveDate();
+    }
+  };
+
+  const scrollToActiveDate = () => {
+    const container = datesContainerRef.current;
+    const activeElement = container.children[activeIndex];
+
+    if (activeElement) {
+      const containerRect = container.getBoundingClientRect();
+      const activeRect = activeElement.getBoundingClientRect();
+
+      const scrollLeft =
+        activeRect.left -
+        containerRect.left -
+        containerRect.width / 2 +
+        activeRect.width / 2;
+      container.scrollLeft = scrollLeft;
+      updateScrollbarWidth();
+    }
+  };
+
+  const updateScrollbarWidth = () => {
+    const container = datesContainerRef.current;
+    const scrollWidth = container.scrollWidth;
+    const clientWidth = container.clientWidth;
+    const scrollLeft = container.scrollLeft;
+    const maxScroll = scrollWidth - clientWidth;
+
+    const scrollRatio = scrollLeft / maxScroll;
+    const minLength = 10;
+    const maxLength = 50;
+    const newLength = maxLength - (maxLength - minLength) * scrollRatio;
+
+    container.style.setProperty("--scrollbar-length", `${newLength}%`);
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const month = date.toLocaleString("en-us", { month: "short" });
+    const day = date.getDate();
+    return `${month} ${day}`;
   };
 
   return (
-    <Swiper
-      ref={swiperRef}
-      pagination={{
-        clickable: true,
-        dynamicBullets: true,
-        dynamicMainBullets: 9,
-        renderBullet: (index, className) =>
-          `<span class="${className}">${squares[index]?.month}<br/>${squares[index]?.day}</span>`,
-      }}
-      slidesPerView={1}
-      spaceBetween={30}
-      scrollbar={{
-        hide: false,
-        enabled: true,
-        draggable: true,
-        dragSize: dragSize, // Initial dragSize
-      }}
-      navigation={true}
-      modules={[Navigation, Scrollbar, Pagination]}
-      className="mySwiper"
-    >
-      {squares.map((square, idx) => (
-        <SwiperSlide key={idx}>
-          <div className="square-content">
-            <span>{square?.month}</span>&nbsp;
-            <span>{square?.day}</span>
-          </div>
-        </SwiperSlide>
-      ))}
-    </Swiper>
+    <div className="calendar-container">
+      <div className="scroll-buttons">
+        <button onClick={prevPage} className="nav-button">
+          &lt;
+        </button>
+        <div
+          className="dates-container"
+          ref={datesContainerRef}
+          onScroll={updateScrollbarWidth}
+        >
+          {dates.map((date, index) => (
+            <div
+              key={index}
+              className={`date-item ${index === activeIndex ? "active" : ""}`}
+              onClick={() => setActive(index)}
+            >
+              {formatDate(date).split(" ")[0]}
+
+              <br />
+              {formatDate(date).split(" ")[1]}
+            </div>
+          ))}
+        </div>
+        <button onClick={nextPage} className="nav-button">
+          &gt;
+        </button>
+      </div>
+      <div className="selected-date">
+        <p>{formatDate(dates[activeIndex])}</p>
+      </div>
+    </div>
   );
-}
+};
+
+export default Calendar;
