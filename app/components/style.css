@@ -38,7 +38,7 @@
 
 .dates-container::-webkit-scrollbar-thumb {
   background: #888;
-  border-radius: 4px;
+  border-radius: 20px;
   width: var(--scrollbar-length); /* Dynamically adjust height based on scroll ratio */
 }
 
